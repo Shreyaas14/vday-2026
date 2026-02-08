@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Special Message For You</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+    <!-- Three.js via Import Map for ES Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-light: #ffd6e0;
+            --bg-silver: #ffccd5;
+            --text-primary: #0a0a0a;
+            --text-secondary: rgba(10, 10, 10, 0.5);
+            --accent: #888888;
+            --accent-deep: #333333;
+            --gold: #1a1a1a;
+            --rose: #666666;
+            --glass: rgba(0, 0, 0, 0.02);
+            --glass-border: rgba(0, 0, 0, 0.06);
+        }
+
+        html, body {
+            font-family: 'Inter', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Three.js Canvas */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Noise overlay for texture */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* Vignette */
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            background: radial-gradient(ellipse at center, transparent 0%, transparent 50%, rgba(0,0,0,0.4) 100%);
+        }
+
+        /* Main Content Layer */
+        .content-layer {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            max-width: 700px;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1),
+                        transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .screen.active {
+            display: flex;
+            opacity: 1;
+            transform: none;
+        }
+
+        /* Typography - Gentle Monster Style */
+        .title-elegant {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 300;
+            font-size: clamp(3rem, 10vw, 6rem);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-primary);
+            margin-bottom: 30px;
+            line-height: 1.1;
+        }
+
+        .title-elegant span {
+            display: block;
+            font-style: italic;
+            font-size: 0.4em;
+            letter-spacing: 0.3em;
+            color: var(--accent);
+            margin-top: 10px;
+        }
+
+        .subtitle-minimal {
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(0.85rem, 2vw, 1rem);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+            max-width: 400px;
+            line-height: 2;
+        }
+
+        /* Elegant Button */
+        .btn-elegant {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 400;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            padding: 18px 50px;
+            background: transparent;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            color: var(--text-primary);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-elegant::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .btn-elegant:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .btn-elegant:hover::before {
+            left: 100%;
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border);
+            padding: 60px 50px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        /* Progress - Minimal Line */
+        .progress-minimal {
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 50px;
+        }
+
+        .progress-line {
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--gold));
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .progress-text {
+            font-size: 0.7rem;
+            letter-spacing: 0.3em;
+            color: var(--text-secondary);
+            margin-top: 15px;
+            text-transform: uppercase;
+        }
+
+        /* Letter Reveal */
+        .letters-reveal {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .letter-box {
+            width: 40px;
+            height: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 300;
+            color: transparent;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .letter-box.revealed {
+            border-color: var(--gold);
+            color: var(--gold);
+            text-shadow: 0 0 30px rgba(201, 168, 108, 0.5);
+        }
+
+        /* Question Styling */
+        .question-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.4em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 25px;
+        }
+
+        .question-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(1.4rem, 4vw, 1.8rem);
+            font-weight: 400;
+            line-height: 1.6;
+            color: var(--text-primary);
+            margin-bottom: 40px;
+        }
+
+        /* Options */
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .option-item {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            padding: 20px 30px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0;
+            background: rgba(255, 255, 255, 0.03);
+            transition: width 0.4s ease;
+        }
+
+        .option-item:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
+            padding-left: 40px;
+        }
+
+        .option-item:hover::before {
+            width: 100%;
+        }
+
+        .option-item.correct {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(201, 168, 108, 0.05);
+        }
+
+        .option-item.incorrect {
+            border-color: var(--accent-deep);
+            color: var(--accent-deep);
+        }
+
+        .option-item.disabled {
+            pointer-events: none;
+        }
+
+        /* Hint */
+        .hint-box {
+            margin-top: 30px;
+            padding: 20px;
+            border-left: 1px solid var(--accent);
+            background: rgba(212, 165, 165, 0.03);
+            font-style: italic;
+            font-size: 0.85rem;
+            color: var(--accent);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease;
+            display: none;
+        }
+
+        .hint-box.visible {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Shake Animation */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-8px); }
+            80% { transform: translateX(8px); }
+        }
+
+        .shake {
+            animation: shake 0.5s ease;
+        }
+
+        /* Final Screen */
+        .final-word {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .final-letter {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(3rem, 12vw, 7rem);
+            font-weight: 300;
+            color: var(--gold);
+            text-shadow: 0 0 60px rgba(201, 168, 108, 0.4);
+            opacity: 0;
+            transform: translateY(50px) scale(0.8);
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .final-letter.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .question-romantic {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            font-weight: 300;
+            font-style: italic;
+            color: var(--text-primary);
+            margin-bottom: 50px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1s ease 0.5s;
+        }
+
+        .question-romantic.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Response Buttons */
+        .response-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1s ease 1s;
+        }
+
+        .response-container.visible {
+            opacity: 1;
+            transform: none;
+        }
+
+        .btn-yes {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            padding: 22px 60px;
+            background: linear-gradient(135deg, #e8a0a0 0%, #d4637a 50%, #c94b6a 100%);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 8px 30px rgba(212, 99, 122, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-yes::before {
+            content: '♥';
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+
+        .btn-yes::after {
+            content: '♥';
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+
+        .btn-yes:hover {
+            transform: scale(1.08) translateY(-2px);
+            box-shadow: 0 15px 50px rgba(212, 99, 122, 0.5);
+            background: linear-gradient(135deg, #f0b0b0 0%, #e06080 50%, #d45575 100%);
+        }
+
+        .btn-no {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            padding: 18px 45px;
+            background: linear-gradient(135deg, #a0c4e8 0%, #6b9fd4 50%, #4a8bc9 100%);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 8px 30px rgba(74, 139, 201, 0.3);
+        }
+
+        .btn-no:hover {
+            background: linear-gradient(135deg, #b0d4f8 0%, #7bafd4 50%, #5a9bd9 100%);
+            box-shadow: 0 12px 40px rgba(74, 139, 201, 0.4);
+        }
+
+        /* Celebration */
+        .celebration-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            font-weight: 300;
+            font-style: italic;
+            color: #c94b6a;
+            margin-bottom: 30px;
+            text-shadow: 0 0 60px rgba(201, 75, 106, 0.3);
+        }
+
+        .celebration-message {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.1rem;
+            line-height: 2;
+            color: #333;
+            max-width: 450px;
+            letter-spacing: 0.03em;
+        }
+
+        .heart-icon {
+            font-size: 5rem;
+            margin: 40px 0;
+            color: #c94b6a;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+
+        /* Loading indicator */
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 1s ease, visibility 1s ease;
+        }
+
+        .loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loader-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .loader-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .loader-progress {
+            width: 200px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .loader-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--gold));
+            transition: width 0.3s ease;
+        }
+
+        .loader-count {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .glass-card {
+                padding: 40px 25px;
+            }
+
+            .letter-box {
+                width: 32px;
+                height: 42px;
+                font-size: 1.4rem;
+            }
+
+            .btn-yes, .btn-no {
+                padding: 20px 50px;
+            }
+
+            .response-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loader" id="loader">
+        <div class="loader-content">
+            <div class="loader-text">Loading</div>
+            <div class="loader-progress">
+                <div class="loader-progress-bar" id="loaderProgress"></div>
+            </div>
+            <div class="loader-count" id="loaderCount">0 / 0</div>
+        </div>
+    </div>
+
+    <!-- Three.js Canvas -->
+    <div id="canvas-container">
+        <canvas id="three-canvas"></canvas>
+    </div>
+
+    <!-- Overlays -->
+    <div class="noise-overlay"></div>
+    <div class="vignette"></div>
+
+    <!-- Content -->
+    <div class="content-layer">
+        <!-- Welcome Screen -->
+        <div class="screen active" id="welcomeScreen">
+            <h1 class="title-elegant">
+                Valentine's Quiz
+                <span>Solve the Riddle!</span>
+            </h1>
+            <p class="subtitle-minimal">
+                Answer each question to reveal a special word
+            </p>
+            <button class="btn-elegant" onclick="startQuiz()">Begin</button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div class="screen" id="quizScreen">
+            <div class="progress-minimal">
+                <div class="progress-line">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Question 1 of 9</div>
+            </div>
+
+            <div class="glass-card" id="quizCard">
+                <div class="question-label" id="questionLabel">Memory I</div>
+                <div class="question-text" id="questionText"></div>
+                <div class="options-grid" id="optionsGrid"></div>
+                <div class="hint-box" id="hintBox"></div>
+            </div>
+
+            <div class="letters-reveal" id="lettersReveal"></div>
+        </div>
+
+        <!-- Transition Screen -->
+        <div class="screen" id="transitionScreen">
+            <div class="final-word" id="finalWord"></div>
+        </div>
+
+        <!-- Final Question Screen -->
+        <div class="screen" id="finalScreen">
+            <div class="question-romantic" id="romanticQuestion">Will you be my Valentine?</div>
+            <div class="response-container" id="responseContainer">
+                <button class="btn-yes" onclick="sayYes()">Yes</button>
+                <button class="btn-no" id="btnNo">No</button>
+            </div>
+        </div>
+
+        <!-- Celebration Screen -->
+        <div class="screen" id="celebrationScreen">
+            <h1 class="celebration-title">Forever Yours</h1>
+            <div class="heart-icon">&#10084;</div>
+            <p class="celebration-message" id="celebrationMessage"></p>
+        </div>
+    </div>
+
+    <!-- Main Application Script -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

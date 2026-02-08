@@ -1,0 +1,10 @@
+{
+  "name": "valentine-quiz",
+  "version": "1.0.0",
+  "description": "A romantic Valentine's Day treasure hunt quiz",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": ["valentine", "quiz", "love"],
+  "license": "MIT"
+}
